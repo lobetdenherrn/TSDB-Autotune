@@ -2,7 +2,7 @@
 sudo apt-get update
 
 # Install packages to allow apt to use a repository over HTTPS:
-sudo apt-get install \
+sudo apt-get install -y\
     apt-transport-https \
     ca-certificates \
     curl \
@@ -22,7 +22,7 @@ sudo add-apt-repository \
 sudo apt-get update
 
 # Install the latest version of docker-ce
-sudo apt-get install docker-ce docker-ce-cli containerd.io
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io
 
 # make sure that docker is installed
 docker -v
@@ -34,3 +34,6 @@ sudo mkdir -p /srv/docker/grafana/data; chown 472:472 /srv/docker/grafana/data
 docker pull grafana/grafana
 docker pull influxdb
 docker pull telegraf
+
+# install docker-compose
+sudo apt install -y docker-compose
