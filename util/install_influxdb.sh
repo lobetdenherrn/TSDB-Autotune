@@ -1,3 +1,5 @@
+# This is outdated. Please do not use this, but refer to the influxdb docker container instead
+
 #  Add the InfluxData repository to the file  /etc/apt/sources.list.d/influxdb.list
 echo "deb https://repos.influxdata.com/ubuntu bionic stable" | sudo tee /etc/apt/sources.list.d/influxdb.list
 
