@@ -101,3 +101,16 @@ Summary:
 loaded 1476207899 metrics in 8989.688sec with 1 workers (mean rate 164211.25 metrics/sec)
 loaded 186706431 rows in 8989.688sec with 1 workers (mean rate 20768.96 rows/sec)
 ```
+
+# Overview
+
+**Average Throughput [points/s]:**
+* iotdb-benchmark: 
+    * 310762.59
+    * 285770.68
+* tsbs-benchmark:
+    * 164211.25
+
+Possible reasons for the large difference:
+* iotdb-benchmark better parallelized (many workers)
+* lower cardinality in dataset of iotdb
