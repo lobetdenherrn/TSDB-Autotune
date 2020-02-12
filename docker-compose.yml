@@ -12,25 +12,33 @@ influxdb:
       # sudo mkdir -p /srv/docker/influxdb/data
       - /srv/docker/influxdb/data:/var/lib/influxdb
 
-telegraf:
-    image: telegraf:latest
-    container_name: telegraf
-    links:
-        - influxdb
-    volumes:
-        - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
+# telegraf:
+#     image: telegraf:latest
+#     container_name: telegraf
+#     links:
+#         - influxdb
+#     volumes:
+#         - ./telegraf.conf:/etc/telegraf/telegraf.conf:ro
     
-grafana:
-    image: grafana/grafana:latest
-    container_name: grafana
-    ports:
-        - "3000:3000"
-    env_file:
-        - 'env.grafana'
-    user: "0"
+# grafana:
+#     image: grafana/grafana:latest
+#     container_name: grafana
+#     ports:
+#         - "3000:3000"
+#     env_file:
+#         - 'env.grafana'
+#     user: "0"
+#     links:
+#         - influxdb
+#     volumes:
+#         # Data persistency
+#         # sudo mkdir -p /srv/docker/grafana/data; chown 472:472 /srv/docker/grafana/data
+#         - /srv/docker/grafana/data:/var/lib/grafana
+
+chronograf:
+    image: chronograf:latest
+    container_name: chronograf
     links:
-        - influxdb
-    volumes:
-        # Data persistency
-        # sudo mkdir -p /srv/docker/grafana/data; chown 472:472 /srv/docker/grafana/data
-        - /srv/docker/grafana/data:/var/lib/grafana
+       - influxdb
+    ports:
+        - "8888:8888"
