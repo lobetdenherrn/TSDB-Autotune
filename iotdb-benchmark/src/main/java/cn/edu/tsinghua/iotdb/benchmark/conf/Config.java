@@ -242,6 +242,10 @@ public class Config {
 	//mataData文件路径
 	public String METADATA_FILE_PATH = "";
 
+	// Custom Extensions:
+	/** Specify a Project ID for your measurements to group them */
+	public String PROJECT_ID = "dummyProject";
+
 	public void initInnerFunction() {
 		FunctionXml xml = null;
 		try {
