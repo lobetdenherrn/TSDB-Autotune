@@ -3,7 +3,7 @@ version: '3'
 services:
   # Database
   db:
-    image: mysql:latest
+    image: mysql:5
     container_name: mysql
     volumes:
       - db_data:/var/lib/mysql
