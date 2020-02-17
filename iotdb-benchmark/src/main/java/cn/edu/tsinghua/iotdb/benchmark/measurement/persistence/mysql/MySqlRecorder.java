@@ -212,7 +212,7 @@ public class MySqlRecorder implements ITestDataPersistence {
   public void saveResult(String operation, String k, String v) {
     Statement stat = null;
     String sql_final = String.format(SAVE_RESULT_FINAL, projectID, operation, k, v);
-    String sql_overview = String.format(SAVE_RESULT_FINAL, projectID, operation, k, v);
+    String sql_overview = String.format(SAVE_RESULT_OVERVIEW, projectID, operation, k, v);
     try {
       stat = mysqlConnection.createStatement();
       stat.executeUpdate(sql_overview);
