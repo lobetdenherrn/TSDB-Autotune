@@ -22,7 +22,8 @@ public class MySqlRecorder implements ITestDataPersistence {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MySqlRecorder.class);
   private static final String SAVE_CONFIG = "insert into CONFIG values(NULL, %s, %s, %s)";
-  private static final String SAVE_RESULT = "insert into FINAL_RESULT values(NULL, '%s', '%s', '%s', '%s')";
+  private static final String SAVE_RESULT_FINAL = "insert into FINAL_RESULT values(NULL, '%s', '%s', '%s', '%s')";
+  private static final String SAVE_RESULT_OVERVIEW = "insert into STATS_OVERVIEW values(NULL, '%s', '%s', '%s', '%s')";
   private Connection mysqlConnection = null;
   private Config config = ConfigDescriptor.getInstance().getConfig();
   private SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
@@ -30,7 +31,11 @@ public class MySqlRecorder implements ITestDataPersistence {
   private String localName;
   private String day;
   private static final long EXP_TIME = System.currentTimeMillis();
-  private String projectID = String.format("%s_%s_%s_%s",config.BENCHMARK_WORK_MODE, config.DB_SWITCH, config.REMARK, sdf.format(new java.util.Date(EXP_TIME)));
+  
+  // change projectID to be more specifiable
+  //private String projectID = String.format("%s_%s_%s_%s",config.BENCHMARK_WORK_MODE, config.DB_SWITCH, config.REMARK, sdf.format(new java.util.Date(EXP_TIME)));
+  private String projectID = String.format("%s_%s_%s_%s", config.PROJECT_ID, config.DB_SWITCH, config.REMARK, sdf.format(new java.util.Date(EXP_TIME)));
+
   private Statement statement;
   private static final String URL_TEMPLATE = "jdbc:mysql://%s:%s/%s?user=%s&password=%s&useUnicode=true&characterEncoding=UTF8&useSSL=false&rewriteBatchedStatements=true";
   private String url = String.format(URL_TEMPLATE, config.TEST_DATA_STORE_IP,
@@ -63,7 +68,7 @@ public class MySqlRecorder implements ITestDataPersistence {
 
   }
 
-  // 检查记录本次实验的表格是否已经创建，没有则创建
+  // this method creates the necessary tables 
   private void initTable() {
     Statement stat = null;
     try {
@@ -94,6 +99,11 @@ public class MySqlRecorder implements ITestDataPersistence {
             "create table FINAL_RESULT (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, projectID VARCHAR(150), operation VARCHAR(50), result_key VARCHAR(150), result_value VARCHAR(150))AUTO_INCREMENT = 1;");
         LOGGER.info("Table FINAL_RESULT create success!");
       }
+      if (!hasTable("STATS_OVERVIEW")) {
+        stat.executeUpdate(
+            "create table STATS_OVERVIEW (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, projectID VARCHAR(150), operation VARCHAR(50), result_key VARCHAR(150), result_value VARCHAR(150))AUTO_INCREMENT = 1;");
+        LOGGER.info("Table STATS_OVERVIEW create success!");
+      }
       if (config.BENCHMARK_WORK_MODE.equals(Constants.MODE_TEST_WITH_DEFAULT_PATH) && !hasTable(
           projectID)) {
         stat.executeUpdate("create table "
@@ -103,7 +113,7 @@ public class MySqlRecorder implements ITestDataPersistence {
         LOGGER.info("Table {} create success!", projectID);
       }
     } catch (SQLException e) {
-      LOGGER.error("mysql 创建表格失败,原因是", e);
+      LOGGER.error("mysql server raised an SQLException: ", e);
     } finally {
       try {
         if (stat != null) {
@@ -201,12 +211,19 @@ public class MySqlRecorder implements ITestDataPersistence {
   @Override
   public void saveResult(String operation, String k, String v) {
     Statement stat = null;
-    String sql = String.format(SAVE_RESULT, projectID, operation, k, v);
+    String sql_final = String.format(SAVE_RESULT_FINAL, projectID, operation, k, v);
+    String sql_overview = String.format(SAVE_RESULT_OVERVIEW, projectID, operation, k, v);
     try {
       stat = mysqlConnection.createStatement();
-      stat.executeUpdate(sql);
+      stat.executeUpdate(sql_overview);
     } catch (SQLException e) {
-      LOGGER.error("{}将结果信息写入mysql失败，because ：{}", sql, e);
+      LOGGER.error("{} query failed to execute on mysql server，because ：{}", sql_overview, e);
+    }
+    try {
+      stat = mysqlConnection.createStatement();
+      stat.executeUpdate(sql_final);
+    } catch (SQLException e) {
+      LOGGER.error("{} query failed to execute on mysql server，because ：{}", sql_final, e);
     } finally {
       if (stat != null) {
         try {
