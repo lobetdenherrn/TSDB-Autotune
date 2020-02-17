@@ -166,6 +166,7 @@ public class ConfigDescriptor {
 
 				// custom extensions:
 				config.PROJECT_ID = properties.getProperty("PROJECT_ID", config.PROJECT_ID + "");
+				config.PROJECT_MEASUREMENTS = properties.getProperty("PROJECT_MEASUREMENTS", config.PROJECT_MEASUREMENTS + "");
 
         config.REAL_INSERT_RATE = Double.parseDouble(properties.getProperty("REAL_INSERT_RATE", config.REAL_INSERT_RATE+""));
 				if(config.REAL_INSERT_RATE <= 0 || config.REAL_INSERT_RATE > 1) {

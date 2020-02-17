@@ -14,6 +14,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +37,7 @@ public class MySqlRecorder implements ITestDataPersistence {
   // change projectID to be more specifiable
   //private String projectID = String.format("%s_%s_%s_%s",config.BENCHMARK_WORK_MODE, config.DB_SWITCH, config.REMARK, sdf.format(new java.util.Date(EXP_TIME)));
   private String projectID = String.format("%s_%s_%s_%s", config.PROJECT_ID, config.DB_SWITCH, config.REMARK, sdf.format(new java.util.Date(EXP_TIME)));
+  private String projectTableName = config.PROJECT_ID;
 
   private Statement statement;
   private static final String URL_TEMPLATE = "jdbc:mysql://%s:%s/%s?user=%s&password=%s&useUnicode=true&characterEncoding=UTF8&useSSL=false&rewriteBatchedStatements=true";
@@ -66,6 +69,22 @@ public class MySqlRecorder implements ITestDataPersistence {
       LOGGER.error("mysql 连接初始化失败，原因是", e);
     }
 
+  }
+
+  private boolean isProjectWanted() {
+    if (config.PROJECT_ID.toLowerCase() == "none"){
+      return false;
+    } else {
+      return true;
+    }
+  }
+
+  private List<String> getProjectMeasurements() {
+    List<String> project_measurements = new ArrayList<String>();
+    if (config.PROJECT_MEASUREMENTS == "INGESTION") {
+      project_measurements.add("throughput");
+    }
+    return project_measurements;
   }
 
   // this method creates the necessary tables 
@@ -103,6 +122,17 @@ public class MySqlRecorder implements ITestDataPersistence {
         stat.executeUpdate(
             "create table STATS_OVERVIEW (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, projectID VARCHAR(150), operation VARCHAR(50), result_key VARCHAR(150), result_value VARCHAR(150))AUTO_INCREMENT = 1;");
         LOGGER.info("Table STATS_OVERVIEW create success!");
+      }
+      if (isProjectWanted() && !hasTable(projectTableName)) {
+        List<String> project_measurements = getProjectMeasurements();
+        String sql = "create table"
+                + projectTableName
+                + "(id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, projectID VARCHAR(150), operation VARCHAR(50)"
+        for (int i = 0; i < project_measurements.size(); i++) {
+          sql += ", " + project_measurements.get(i) + " VARCHAR(150)";
+        }
+        stat.executeUpdate(sql + ";");
+        LOGGER.info("Table " + projectTableName + " create success!");
       }
       if (config.BENCHMARK_WORK_MODE.equals(Constants.MODE_TEST_WITH_DEFAULT_PATH) && !hasTable(
           projectID)) {
@@ -213,6 +243,7 @@ public class MySqlRecorder implements ITestDataPersistence {
     Statement stat = null;
     String sql_final = String.format(SAVE_RESULT_FINAL, projectID, operation, k, v);
     String sql_overview = String.format(SAVE_RESULT_OVERVIEW, projectID, operation, k, v);
+    String sql projectMeasurements = String.format(SAVE_RESULT_PROJECT, projectTableName, );
     try {
       stat = mysqlConnection.createStatement();
       stat.executeUpdate(sql_overview);
