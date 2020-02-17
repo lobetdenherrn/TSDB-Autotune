@@ -44,3 +44,8 @@ sudo chmod +x /usr/local/bin/docker-compose
 sudo ln -s /usr/local/bin/docker-compose /usr/bin/docker-compose
 
 docker-compose --version
+
+# install iostat to measure system stats
+sudo apt-get install sysstat -y
+
+iostat -V
