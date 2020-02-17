@@ -215,10 +215,15 @@ public class MySqlRecorder implements ITestDataPersistence {
     String sql_overview = String.format(SAVE_RESULT_FINAL, projectID, operation, k, v);
     try {
       stat = mysqlConnection.createStatement();
-      stat.executeUpdate(sql_final);
       stat.executeUpdate(sql_overview);
     } catch (SQLException e) {
-      LOGGER.error("{}将结果信息写入mysql失败，because ：{}", sql, e);
+      LOGGER.error("{} query failed to execute on mysql server，because ：{}", sql_overview, e);
+    }
+    try {
+      stat = mysqlConnection.createStatement();
+      stat.executeUpdate(sql_final);
+    } catch (SQLException e) {
+      LOGGER.error("{} query failed to execute on mysql server，because ：{}", sql_final, e);
     } finally {
       if (stat != null) {
         try {
