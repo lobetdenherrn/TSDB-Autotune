@@ -119,10 +119,12 @@ public class MySqlRecorder implements ITestDataPersistence {
         LOGGER.info("Table STATS_OVERVIEW create success!");
       }
       if (isProjectWanted() && !hasTable(projectTableName)) {
+        LOGGER.info("############################# We should create the metric specific table now");
         if (config.PROJECT_TYPE.toLowerCase() == "ingestion") {
-          String sql = String.format(INGESTION_CREATE_STATEMENT, projectTableName);
-          stat.executeUpdate(sql);
-          LOGGER.info("Table {} create success!", projectTableName);
+            LOGGER.info("############################# Okay good");
+            String sql = String.format(INGESTION_CREATE_STATEMENT, projectTableName);
+            stat.executeUpdate(sql);
+            LOGGER.info("Table {} create success!", projectTableName);
         } // else not supported yet. Only ingestion supported right now.
       }
       if (config.BENCHMARK_WORK_MODE.equals(Constants.MODE_TEST_WITH_DEFAULT_PATH) && !hasTable(
