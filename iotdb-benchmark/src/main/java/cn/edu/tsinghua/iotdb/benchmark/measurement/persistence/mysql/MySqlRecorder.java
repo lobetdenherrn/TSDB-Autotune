@@ -26,6 +26,9 @@ public class MySqlRecorder implements ITestDataPersistence {
   private static final String SAVE_CONFIG = "insert into CONFIG values(NULL, %s, %s, %s)";
   private static final String SAVE_RESULT_FINAL = "insert into FINAL_RESULT values(NULL, '%s', '%s', '%s', '%s')";
   private static final String SAVE_RESULT_OVERVIEW = "insert into STATS_OVERVIEW values(NULL, '%s', '%s', '%s', '%s')";
+  private static final String INGESTION_CREATE_STATEMENT = "create table %s (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, CLIENT_NUMBER INT, GROUP_NUMBER INT, DEVICE_NUMBER INT, INGESTION_THROUGHPUT DOUBLE);";
+  private static final String INGESTION_INSERT_STATEMENT = "insert into %s values(NULL,'%i','%i','%i',%d)";
+
   private Connection mysqlConnection = null;
   private Config config = ConfigDescriptor.getInstance().getConfig();
   private SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
@@ -79,14 +82,6 @@ public class MySqlRecorder implements ITestDataPersistence {
     }
   }
 
-  private List<String> getProjectMeasurements() {
-    List<String> project_measurements = new ArrayList<String>();
-    if (config.PROJECT_MEASUREMENTS == "INGESTION") {
-      project_measurements.add("throughput");
-    }
-    return project_measurements;
-  }
-
   // this method creates the necessary tables 
   private void initTable() {
     Statement stat = null;
@@ -124,15 +119,11 @@ public class MySqlRecorder implements ITestDataPersistence {
         LOGGER.info("Table STATS_OVERVIEW create success!");
       }
       if (isProjectWanted() && !hasTable(projectTableName)) {
-        List<String> project_measurements = getProjectMeasurements();
-        String sql = "create table"
-                + projectTableName
-                + "(id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, projectID VARCHAR(150), operation VARCHAR(50)"
-        for (int i = 0; i < project_measurements.size(); i++) {
-          sql += ", " + project_measurements.get(i) + " VARCHAR(150)";
-        }
-        stat.executeUpdate(sql + ";");
-        LOGGER.info("Table " + projectTableName + " create success!");
+        if (config.PROJECT_TYPE.toLowerCase() == "ingestion") {
+          String sql = String.format(INGESTION_CREATE_STATEMENT, projectTableName);
+          stat.executeUpdate(sql);
+          LOGGER.info("Table " + projectTableName + " create success!");
+        } // else not supported yet. Only ingestion supported right now.
       }
       if (config.BENCHMARK_WORK_MODE.equals(Constants.MODE_TEST_WITH_DEFAULT_PATH) && !hasTable(
           projectID)) {
@@ -237,13 +228,30 @@ public class MySqlRecorder implements ITestDataPersistence {
 
   }
 
+  public String formatIngestionInsertStatement(String value){
+    // format looks like (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, CLIENT_NUMBER INT, GROUP_NUMBER INT, DEVICE_NUMBER INT, INGESTION_THROUGHPUT DOUBLE)
+    return String.format(INGESTION_INSERT_STATEMENT, projectTableName, config.CLIENT_NUMBER, config.GROUP_NUMBER, config.DEVICE_NUMBER, Double.parseDouble(value));
+  }
+
   // 存储实验结果
   @Override
   public void saveResult(String operation, String k, String v) {
     Statement stat = null;
     String sql_final = String.format(SAVE_RESULT_FINAL, projectID, operation, k, v);
     String sql_overview = String.format(SAVE_RESULT_OVERVIEW, projectID, operation, k, v);
-    String sql projectMeasurements = String.format(SAVE_RESULT_PROJECT, projectTableName, );
+
+    // only in case the project is wanted and currently there is an ingestion throughput measurement, we save the result
+    if (isProjectWanted() && operation.toLowerCase() == "ingestion" && k.toLowerCase() == "throughput") {
+      String sql_ingestion_measurement = formatIngestionInsertStatement(v);
+      try {
+        stat = mysqlConnection.createStatement();
+        stat.executeUpdate(sql_ingestion_measurement);
+      } catch (SQLException e) {
+        LOGGER.error("{} query failed to execute on mysql server，because ：{}", sql_overview, e);
+      }
+    }
+
+    // in every case, save the sql_overview and sql_final results
     try {
       stat = mysqlConnection.createStatement();
       stat.executeUpdate(sql_overview);

@@ -245,7 +245,7 @@ public class Config {
 	// Custom Extensions:
 	/** Specify a Project ID for your measurements to group them */
 	public String PROJECT_ID = "dummyProject";
-	public String PROJECT_MEASUREMENTS = "INGESTION";
+	public String PROJECT_TYPE = "INGESTION";
 
 	public void initInnerFunction() {
 		FunctionXml xml = null;
