@@ -5,6 +5,7 @@ influxdb:
       - "8083:8083"
       - "8086:8086"
       - "8090:8090"
+    restart: always
     env_file:
       - 'env.influxdb'
     volumes:
@@ -38,6 +39,7 @@ influxdb:
 chronograf:
     image: chronograf:latest
     container_name: chronograf
+    restart: always
     links:
        - influxdb
     ports:
