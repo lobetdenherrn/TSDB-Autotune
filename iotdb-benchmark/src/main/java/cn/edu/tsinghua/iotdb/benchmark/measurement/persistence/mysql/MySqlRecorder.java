@@ -119,9 +119,9 @@ public class MySqlRecorder implements ITestDataPersistence {
         LOGGER.info("Table STATS_OVERVIEW create success!");
       }
       if (isProjectWanted() && !hasTable(projectTableName)) {
-        LOGGER.info("############################# We should create the metric specific table now. Project Type = " + config.PROJECT_TYPE);
-        if (config.PROJECT_TYPE.toLowerCase() == "ingestion") {
-            LOGGER.info("############################# Okay good");
+        LOGGER.info("####### We should create the metric specific table now. Project Type = '" + config.PROJECT_TYPE + "'");
+        if (config.PROJECT_TYPE.toLowerCase().contains("ingestion")) {
+            LOGGER.info("********************** Okay good");
             String sql = String.format(INGESTION_CREATE_STATEMENT, projectTableName);
             stat.executeUpdate(sql);
             LOGGER.info("Table {} create success!", projectTableName);
@@ -244,7 +244,7 @@ public class MySqlRecorder implements ITestDataPersistence {
     String sql_overview = String.format(SAVE_RESULT_OVERVIEW, projectID, operation, k, v);
 
     // only in case the project is wanted and currently there is an ingestion throughput measurement, we save the result
-    if (isProjectWanted() && operation.toLowerCase() == "ingestion" && k.toLowerCase() == "throughput") {
+    if (isProjectWanted() && operation.toLowerCase().contains("ingestion") && k.toLowerCase().contains("throughput")) {
       String sql_ingestion_measurement = formatIngestionInsertStatement(v);
       try {
         stat = mysqlConnection.createStatement();
