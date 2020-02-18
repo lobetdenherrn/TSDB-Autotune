@@ -122,7 +122,7 @@ public class MySqlRecorder implements ITestDataPersistence {
         if (config.PROJECT_TYPE.toLowerCase() == "ingestion") {
           String sql = String.format(INGESTION_CREATE_STATEMENT, projectTableName);
           stat.executeUpdate(sql);
-          LOGGER.info("Table " + projectTableName + " create success!");
+          LOGGER.info("Table {} create success!", projectTableName);
         } // else not supported yet. Only ingestion supported right now.
       }
       if (config.BENCHMARK_WORK_MODE.equals(Constants.MODE_TEST_WITH_DEFAULT_PATH) && !hasTable(
@@ -377,7 +377,7 @@ public class MySqlRecorder implements ITestDataPersistence {
             "'BATCH_SIZE'", "'" + config.BATCH_SIZE + "'");
         stat.addBatch(sql);
         sql = String.format(SAVE_CONFIG, "'" + projectID + "'",
-            "'POINT_STEP'", "'" + config.POINT_STEP + "'");
+            "'POINT_STEP'", "'" + Long.toString(config.POINT_STEP) + "'");
         stat.addBatch(sql);
         if (config.DB_SWITCH.equals(Constants.DB_IOT)) {
           sql = String.format(SAVE_CONFIG, "'" + projectID + "'",
@@ -387,7 +387,7 @@ public class MySqlRecorder implements ITestDataPersistence {
       }
       stat.executeBatch();
     } catch (SQLException e) {
-      LOGGER.error("{}将配置信息写入mysql失败，because ：{}", sql, e);
+      LOGGER.error("The sql statement '{}' raised the following error：{}", sql, e);
     } finally {
       if (stat != null) {
         try {
