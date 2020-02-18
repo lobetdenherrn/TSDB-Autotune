@@ -14,6 +14,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +26,9 @@ public class MySqlRecorder implements ITestDataPersistence {
   private static final String SAVE_CONFIG = "insert into CONFIG values(NULL, %s, %s, %s)";
   private static final String SAVE_RESULT_FINAL = "insert into FINAL_RESULT values(NULL, '%s', '%s', '%s', '%s')";
   private static final String SAVE_RESULT_OVERVIEW = "insert into STATS_OVERVIEW values(NULL, '%s', '%s', '%s', '%s')";
+  private static final String INGESTION_CREATE_STATEMENT = "create table %s (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, CLIENT_NUMBER INT, GROUP_NUMBER INT, DEVICE_NUMBER INT, SENSOR_NUMBER INT, BATCH_SIZE INT, LOOP_RATE INT, REAL_INSERT_RATE DOUBLE, POINT_STEP INT, INGESTION_THROUGHPUT DOUBLE);";
+  private static final String INGESTION_INSERT_STATEMENT = "insert into %s values(NULL, %d, %d, %d, %d, %d, %d, %f, %d, %f)";
+
   private Connection mysqlConnection = null;
   private Config config = ConfigDescriptor.getInstance().getConfig();
   private SimpleDateFormat df = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
@@ -35,6 +40,7 @@ public class MySqlRecorder implements ITestDataPersistence {
   // change projectID to be more specifiable
   //private String projectID = String.format("%s_%s_%s_%s",config.BENCHMARK_WORK_MODE, config.DB_SWITCH, config.REMARK, sdf.format(new java.util.Date(EXP_TIME)));
   private String projectID = String.format("%s_%s_%s_%s", config.PROJECT_ID, config.DB_SWITCH, config.REMARK, sdf.format(new java.util.Date(EXP_TIME)));
+  private String projectTableName = config.PROJECT_ID;
 
   private Statement statement;
   private static final String URL_TEMPLATE = "jdbc:mysql://%s:%s/%s?user=%s&password=%s&useUnicode=true&characterEncoding=UTF8&useSSL=false&rewriteBatchedStatements=true";
@@ -66,6 +72,14 @@ public class MySqlRecorder implements ITestDataPersistence {
       LOGGER.error("mysql 连接初始化失败，原因是", e);
     }
 
+  }
+
+  private boolean isProjectWanted() {
+    if (config.PROJECT_ID.toLowerCase() == "none"){
+      return false;
+    } else {
+      return true;
+    }
   }
 
   // this method creates the necessary tables 
@@ -103,6 +117,13 @@ public class MySqlRecorder implements ITestDataPersistence {
         stat.executeUpdate(
             "create table STATS_OVERVIEW (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, projectID VARCHAR(150), operation VARCHAR(50), result_key VARCHAR(150), result_value VARCHAR(150))AUTO_INCREMENT = 1;");
         LOGGER.info("Table STATS_OVERVIEW create success!");
+      }
+      if (isProjectWanted() && !hasTable(projectTableName)) {
+        if (config.PROJECT_TYPE.toLowerCase().contains("ingestion")) {
+            String sql = String.format(INGESTION_CREATE_STATEMENT, projectTableName);
+            stat.executeUpdate(sql);
+            LOGGER.info("Table {} create success!", projectTableName);
+        } // else not supported yet. Only ingestion supported right now.
       }
       if (config.BENCHMARK_WORK_MODE.equals(Constants.MODE_TEST_WITH_DEFAULT_PATH) && !hasTable(
           projectID)) {
@@ -207,12 +228,31 @@ public class MySqlRecorder implements ITestDataPersistence {
 
   }
 
-  // 存储实验结果
+  public String formatIngestionInsertStatement(String value){
+    // format looks like (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, CLIENT_NUMBER INT, GROUP_NUMBER INT, DEVICE_NUMBER INT, SENSOR_NUMBER INT, BATCH_SIZE INT, LOOP_RATE INT, REAL_INSERT_RATE DOUBLE, POINT_STEP INT, INGESTION_THROUGHPUT DOUBLE)
+    return String.format(INGESTION_INSERT_STATEMENT, projectTableName, config.CLIENT_NUMBER, config.GROUP_NUMBER, config.DEVICE_NUMBER,
+            config.SENSOR_NUMBER, config.BATCH_SIZE, config.LOOP, config.REAL_INSERT_RATE, config.POINT_STEP, Double.parseDouble(value));
+  }
+
+  // save the measurement results to three different tables: FINAL_RESULT, STATS_OVERVIEW and the project specific table
   @Override
   public void saveResult(String operation, String k, String v) {
     Statement stat = null;
     String sql_final = String.format(SAVE_RESULT_FINAL, projectID, operation, k, v);
     String sql_overview = String.format(SAVE_RESULT_OVERVIEW, projectID, operation, k, v);
+
+    // only in case the project is wanted and currently there is an ingestion throughput measurement, we save the result
+    if (isProjectWanted() && operation.toLowerCase().contains("ingestion") && k.toLowerCase().contains("throughput")) {
+      String sql_ingestion_measurement = formatIngestionInsertStatement(v);
+      try {
+        stat = mysqlConnection.createStatement();
+        stat.executeUpdate(sql_ingestion_measurement);
+      } catch (SQLException e) {
+        LOGGER.error("{} query failed to execute on mysql server，because ：{}", sql_overview, e);
+      }
+    }
+
+    // in every case, save the sql_overview and sql_final results
     try {
       stat = mysqlConnection.createStatement();
       stat.executeUpdate(sql_overview);
@@ -337,7 +377,7 @@ public class MySqlRecorder implements ITestDataPersistence {
             "'BATCH_SIZE'", "'" + config.BATCH_SIZE + "'");
         stat.addBatch(sql);
         sql = String.format(SAVE_CONFIG, "'" + projectID + "'",
-            "'POINT_STEP'", "'" + config.POINT_STEP + "'");
+            "'POINT_STEP'", "'" + Long.toString(config.POINT_STEP) + "'");
         stat.addBatch(sql);
         if (config.DB_SWITCH.equals(Constants.DB_IOT)) {
           sql = String.format(SAVE_CONFIG, "'" + projectID + "'",
@@ -347,7 +387,7 @@ public class MySqlRecorder implements ITestDataPersistence {
       }
       stat.executeBatch();
     } catch (SQLException e) {
-      LOGGER.error("{}将配置信息写入mysql失败，because ：{}", sql, e);
+      LOGGER.error("The sql statement '{}' raised the following error：{}", sql, e);
     } finally {
       if (stat != null) {
         try {
