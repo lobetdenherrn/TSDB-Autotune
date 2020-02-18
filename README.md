@@ -1,5 +1,7 @@
 # TSDB-Autotune
 
+![Java CI](https://github.com/lobetdenherrn/TSDB-Autotune/workflows/Java%20CI/badge.svg?branch=master)
+
 Includes forks of [thulab/iotdb-benchmark](https://github.com/thulab/iotdb-benchmark) and [timescale/tsbs](https://github.com/timescale/tsbs) benchmarking tools. 
 
 Installation scripts located in util. Diversified into benchmarking instance and db instance.
