@@ -24,5 +24,4 @@
 *.tar
 
 ./conf/*.properties
-**/routine
 /target/
