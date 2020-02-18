@@ -26,7 +26,7 @@ public class MySqlRecorder implements ITestDataPersistence {
   private static final String SAVE_CONFIG = "insert into CONFIG values(NULL, %s, %s, %s)";
   private static final String SAVE_RESULT_FINAL = "insert into FINAL_RESULT values(NULL, '%s', '%s', '%s', '%s')";
   private static final String SAVE_RESULT_OVERVIEW = "insert into STATS_OVERVIEW values(NULL, '%s', '%s', '%s', '%s')";
-  private static final String INGESTION_CREATE_STATEMENT = "create table %s (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, CLIENT_NUMBER INT, GROUP_NUMBER INT, DEVICE_NUMBER INT, SENSOR_NUMBER INT, BATCH_SIZE INT, LOOP INT, REAL_INSERT_RATE DOUBLE, POINT_STEP INT, INGESTION_THROUGHPUT DOUBLE);";
+  private static final String INGESTION_CREATE_STATEMENT = "create table %s (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, CLIENT_NUMBER INT, GROUP_NUMBER INT, DEVICE_NUMBER INT, SENSOR_NUMBER INT, BATCH_SIZE INT, LOOP_RATE INT, REAL_INSERT_RATE DOUBLE, POINT_STEP INT, INGESTION_THROUGHPUT DOUBLE);";
   private static final String INGESTION_INSERT_STATEMENT = "insert into %s values(NULL, %i, %i, %i, %i, %i, %i, %d, %i, %d)";
 
   private Connection mysqlConnection = null;
@@ -119,10 +119,9 @@ public class MySqlRecorder implements ITestDataPersistence {
         LOGGER.info("Table STATS_OVERVIEW create success!");
       }
       if (isProjectWanted() && !hasTable(projectTableName)) {
-        LOGGER.info("####### We should create the metric specific table now. Project Type = '" + config.PROJECT_TYPE + "'");
         if (config.PROJECT_TYPE.toLowerCase().contains("ingestion")) {
-            LOGGER.info("********************** Okay good");
             String sql = String.format(INGESTION_CREATE_STATEMENT, projectTableName);
+            LOGGER.info("SQL that will be executed: " + sql);
             stat.executeUpdate(sql);
             LOGGER.info("Table {} create success!", projectTableName);
         } // else not supported yet. Only ingestion supported right now.
@@ -231,9 +230,9 @@ public class MySqlRecorder implements ITestDataPersistence {
   }
 
   public String formatIngestionInsertStatement(String value){
-    // format looks like (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, CLIENT_NUMBER INT, GROUP_NUMBER INT, DEVICE_NUMBER INT, SENSOR_NUMBER INT, BATCH_SIZE INT, LOOP INT, REAL_INSERT_RATE DOUBLE, POINT_STEP INT, INGESTION_THROUGHPUT DOUBLE)
+    // format looks like (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, CLIENT_NUMBER INT, GROUP_NUMBER INT, DEVICE_NUMBER INT, SENSOR_NUMBER INT, BATCH_SIZE INT, LOOP_RATE INT, REAL_INSERT_RATE DOUBLE, POINT_STEP INT, INGESTION_THROUGHPUT DOUBLE)
     return String.format(INGESTION_INSERT_STATEMENT, projectTableName, config.CLIENT_NUMBER, config.GROUP_NUMBER, config.DEVICE_NUMBER,
-            config.SENSOR_NUMBER, config.BATCH_SIZE, config.REAL_INSERT_RATE, config.POINT_STEP, Double.parseDouble(value));
+            config.SENSOR_NUMBER, config.BATCH_SIZE, config.LOOP, config.REAL_INSERT_RATE, config.POINT_STEP, Double.parseDouble(value));
   }
 
   // save the measurement results to three different tables: FINAL_RESULT, STATS_OVERVIEW and the project specific table
