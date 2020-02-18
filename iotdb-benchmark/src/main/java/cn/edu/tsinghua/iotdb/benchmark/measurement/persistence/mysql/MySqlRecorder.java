@@ -233,7 +233,7 @@ public class MySqlRecorder implements ITestDataPersistence {
     return String.format(INGESTION_INSERT_STATEMENT, projectTableName, config.CLIENT_NUMBER, config.GROUP_NUMBER, config.DEVICE_NUMBER, Double.parseDouble(value));
   }
 
-  // 存储实验结果
+  // save the measurement results to three different tables: FINAL_RESULT, STATS_OVERVIEW and the project specific table
   @Override
   public void saveResult(String operation, String k, String v) {
     Statement stat = null;
