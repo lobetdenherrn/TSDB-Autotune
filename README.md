@@ -16,4 +16,4 @@ For more details about the respective benchmarking tool, refer to the more speci
 
 Simply execute `setup_db_instance.sh` and run `docker-compose up -d` while being located in this current folder to start up the influxdb and chronograf docker containers.
 
-Chronograf will be available at port `8888`.
+Chronograf will be available at port `8888`. From Chronograf, you will be able to access the influx instance via `http://influxdb:8086`.
