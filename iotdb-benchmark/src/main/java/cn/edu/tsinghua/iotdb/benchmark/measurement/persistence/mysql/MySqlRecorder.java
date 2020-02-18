@@ -27,7 +27,7 @@ public class MySqlRecorder implements ITestDataPersistence {
   private static final String SAVE_RESULT_FINAL = "insert into FINAL_RESULT values(NULL, '%s', '%s', '%s', '%s')";
   private static final String SAVE_RESULT_OVERVIEW = "insert into STATS_OVERVIEW values(NULL, '%s', '%s', '%s', '%s')";
   private static final String INGESTION_CREATE_STATEMENT = "create table %s (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, CLIENT_NUMBER INT, GROUP_NUMBER INT, DEVICE_NUMBER INT, SENSOR_NUMBER INT, BATCH_SIZE INT, LOOP_RATE INT, REAL_INSERT_RATE DOUBLE, POINT_STEP INT, INGESTION_THROUGHPUT DOUBLE);";
-  private static final String INGESTION_INSERT_STATEMENT = "insert into %s values(NULL, %i, %i, %i, %i, %i, %i, %d, %i, %d)";
+  private static final String INGESTION_INSERT_STATEMENT = "insert into %s values(NULL, %d, %d, %d, %d, %d, %d, %f, %d, %f)";
 
   private Connection mysqlConnection = null;
   private Config config = ConfigDescriptor.getInstance().getConfig();
@@ -121,7 +121,6 @@ public class MySqlRecorder implements ITestDataPersistence {
       if (isProjectWanted() && !hasTable(projectTableName)) {
         if (config.PROJECT_TYPE.toLowerCase().contains("ingestion")) {
             String sql = String.format(INGESTION_CREATE_STATEMENT, projectTableName);
-            LOGGER.info("SQL that will be executed: " + sql);
             stat.executeUpdate(sql);
             LOGGER.info("Table {} create success!", projectTableName);
         } // else not supported yet. Only ingestion supported right now.
