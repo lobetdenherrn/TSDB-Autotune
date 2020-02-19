@@ -17,3 +17,9 @@ So far, the best configuration in terms of ingestion throughput has been
 | CLIENT_NUMBER | GROUP_NUMBER | DEVICE_NUMBER | SENSOR_NUMBER | BATCH_SIZE | LOOP_RATE | REAL_INSERT_RATE | POINT_STEP | INGESTION_THROUGHPUT |
 |---------------|--------------|---------------|---------------|------------|-----------|------------------|------------|----------------------|
 | 20            | 20           | 20            | 300           | 500        | 10        | 1                | 5000       | 480766.96            |
+
+______
+
+The same benchmark (Increase number of sensors sending measurements) was performed on varying influx cache configurations. Variable altered: `INFLUXDB_DATA_CACHE_MAX_MEMORY_SIZE`
+
+![Ingestion change Cache Max Memory Size over increased number of sensors](img/INFL_CACHE_VARYING.png)
