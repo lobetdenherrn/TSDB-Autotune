@@ -27,3 +27,9 @@ The same benchmark (Increase number of sensors sending measurements) was perform
 Same experiment repeated on larger hardware: `D2s_v3 - 4 vCPUs & 8 GiB RAM`
 
 ![Ingestion change Cache Max Memory Size over increased number of sensors](img/INFL_CACHE_VARYING_D2s_v3.png)
+
+Repeated the same experiment as in the proposal: Ingestion only vs. Ingestion & Query mode. When the DB is queried at the same time, the optimal external configuration seems to shift to a larger amount of sensors. This could be because the Influx engine will buffer more ingesting requests & perform the queries at the same time. Interestingly, CPU and memory was not an issue and was by far not fully utilized:
+
+![Ingestion change Cache Max Memory Size over increased number of sensors while querying DB at same time.](img/INFL_CACHE_VARYING_D2s_v3_with_Queries.png)
+
+![CPU, I/O and memory stats while running last experiment.](img/INFL_CACHE_VARYING_D2s_v3_with_Queries_CPU_stats.png)
