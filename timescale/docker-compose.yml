@@ -1,0 +1,11 @@
+version: '2'
+services:
+  timescale:
+    image: timescale/timescaledb:latest-pg11
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postgrespassword
+    volumes:
+    - db_data:/var/lib/postgresql/data
+volumes:
+  db_data:
