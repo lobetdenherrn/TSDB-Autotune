@@ -3,6 +3,8 @@ services:
   timescale:
     image: timescale/timescaledb:latest-pg11
     container_name: timescale
+    ports:
+        - "5432:5432"
     restart: always
     environment:
       POSTGRES_PASSWORD: postgrespassword
