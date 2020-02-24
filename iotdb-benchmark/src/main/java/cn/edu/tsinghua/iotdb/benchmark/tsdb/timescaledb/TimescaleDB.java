@@ -387,7 +387,7 @@ public class TimescaleDB implements IDatabase {
     sqlBuilder.append("time BIGINT NOT NULL, sGroup TEXT NOT NULL, device TEXT NOT NULL");
     for (String sensor : sensors) {
       sqlBuilder.append(", ").append(sensor).append(" ").append(config.DATA_TYPE)
-          .append(" PRECISION NULL");
+          .append(" NULL");
     }
     sqlBuilder.append(");");
     return sqlBuilder.toString();
