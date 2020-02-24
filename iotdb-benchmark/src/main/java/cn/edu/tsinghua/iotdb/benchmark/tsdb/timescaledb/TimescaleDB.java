@@ -108,9 +108,9 @@ public class TimescaleDB implements IDatabase {
     try (Statement statement = connection.createStatement()){
       String pgsql = getCreateTableSql(tableName, schemaList.get(0).getSensors());
       statement.execute(pgsql);
-      LOGGER.debug("CreateTableSQL Statement:  {}", pgsql);
+      LOGGER.info("CreateTableSQL Statement:  {}", pgsql);
       statement.execute(String.format(CONVERT_TO_HYPERTABLE, tableName));
-      LOGGER.debug("CONVERT_TO_HYPERTABLE Statement:  {}",
+      LOGGER.info("CONVERT_TO_HYPERTABLE Statement:  {}",
           String.format(CONVERT_TO_HYPERTABLE, tableName));
     } catch (SQLException e) {
       LOGGER.error("Can't create PG table because: {}", e.getMessage());
