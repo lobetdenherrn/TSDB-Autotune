@@ -189,7 +189,7 @@ public class TimescaleDB implements IDatabase {
         aggRangeQuery.getAggFun());
     addWhereTimeClause(builder, aggRangeQuery);
     builder.append("GROUP BY device");
-    LOGGER.info("Aggregated Range Query to be executed: ", builder.toString());
+    LOGGER.info("Aggregated Range Query to be executed: " + builder.toString());
     return executeQueryAndGetStatus(builder.toString(), sensorNum);
   }
 
