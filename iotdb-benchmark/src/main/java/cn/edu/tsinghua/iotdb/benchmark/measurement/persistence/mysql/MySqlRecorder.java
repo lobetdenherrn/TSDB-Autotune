@@ -46,7 +46,7 @@ public class MySqlRecorder implements ITestDataPersistence {
   // change projectID to be more specifiable
   //private String projectID = String.format("%s_%s_%s_%s",config.BENCHMARK_WORK_MODE, config.DB_SWITCH, config.REMARK, sdf.format(new java.util.Date(EXP_TIME)));
   private String projectID = String.format("%s_%s_%s_%s", config.PROJECT_ID, config.DB_SWITCH, config.REMARK, sdf.format(new java.util.Date(EXP_TIME)));
-  private String projectTableName = config.PROJECT_ID;
+  private String projectTableName = config.PROJECT_ID + "_" + config.PROJECT_TYPE;
 
   private Statement statement;
   private static final String URL_TEMPLATE = "jdbc:mysql://%s:%s/%s?user=%s&password=%s&useUnicode=true&characterEncoding=UTF8&useSSL=false&rewriteBatchedStatements=true";
