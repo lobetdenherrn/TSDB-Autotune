@@ -107,9 +107,9 @@ public class TimescaleDB implements IDatabase {
   public void registerSchema(List<DeviceSchema> schemaList) throws TsdbException {
     try (Statement statement = connection.createStatement()){
       String pgsql = getCreateTableSql(tableName, schemaList.get(0).getSensors());
-      LOGGER.info("CreateTableSQL Statement:  {}", pgsql);
+      LOGGER.debug("CreateTableSQL Statement:  {}", pgsql);
       statement.execute(pgsql);
-      LOGGER.info("CONVERT_TO_HYPERTABLE Statement:  {}",
+      LOGGER.debug("CONVERT_TO_HYPERTABLE Statement:  {}",
         String.format(CONVERT_TO_HYPERTABLE, tableName));
       statement.execute(String.format(CONVERT_TO_HYPERTABLE, tableName));
     } catch (SQLException e) {
