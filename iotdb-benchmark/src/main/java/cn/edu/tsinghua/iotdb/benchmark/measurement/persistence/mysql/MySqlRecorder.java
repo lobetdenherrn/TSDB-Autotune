@@ -34,8 +34,8 @@ public class MySqlRecorder implements ITestDataPersistence {
   private static final String INGESTION_INSERT_STATEMENT = "insert into %s values(NULL, %d, %d, %d, %d, %d, %d, %f, %d, %f)";
 
   // query mode tables
-  private static final String QUERY_CREATE_STATEMENT = "create table %s (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, LOOP_RATE INT, POINT_STEP INT, QUERY_INTERVAL INT, OPERATION VARCHAR(150), Latency_AVG DOUBLE);";
-  private static final String QUERY_INSERT_STATEMENT = "insert into %s values(NULL, %d, %d, %d, '%s', %f)";
+  private static final String QUERY_CREATE_STATEMENT = "create table %s (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, project_id VARCHAR(150), LOOP_RATE INT, POINT_STEP INT, QUERY_INTERVAL INT, OPERATION VARCHAR(150), Latency_AVG DOUBLE);";
+  private static final String QUERY_INSERT_STATEMENT = "insert into %s values(NULL, '%s', %d, %d, %d, '%s', %f)";
 
   private Connection mysqlConnection = null;
   private Config config = ConfigDescriptor.getInstance().getConfig();
@@ -257,10 +257,11 @@ public class MySqlRecorder implements ITestDataPersistence {
   }
 
   public String formatQueryInsertStatement(String operation, String latency_avg){
-    // format looks like (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, LOOP INT, POINT_STEP INT, QUERY_INTERVAL INT, 
+    // format looks like (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, project_id VARCHAR(150), LOOP INT, POINT_STEP INT, QUERY_INTERVAL INT, 
     // OPERATION VARCHAR(150), Latency_AVG DOUBLE)
     return String.format(QUERY_INSERT_STATEMENT, 
-        projectTableName, 
+        projectTableName,
+        projectID,
         config.LOOP, 
         config.POINT_STEP, 
         config.QUERY_INTERVAL,
