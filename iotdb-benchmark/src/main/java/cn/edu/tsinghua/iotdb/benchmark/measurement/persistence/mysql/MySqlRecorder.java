@@ -276,7 +276,7 @@ public class MySqlRecorder implements ITestDataPersistence {
     String sql_overview = String.format(SAVE_RESULT_OVERVIEW, projectID, operation, k, v);
 
     // only in case the project is wanted and currently there is an ingestion throughput measurement, we save the result
-    if (isProjectWanted() && operation.toLowerCase().contains("ingestion") && k.toLowerCase().contains("throughput")) {
+    if (isProjectWanted() && config.PROJECT_TYPE.toLowerCase().contains("ingestion") && operation.toLowerCase().contains("ingestion") && k.toLowerCase().contains("throughput")) {
       String sql_ingestion_measurement = formatIngestionInsertStatement(v);
       try {
         stat = mysqlConnection.createStatement();
@@ -287,8 +287,8 @@ public class MySqlRecorder implements ITestDataPersistence {
     }
 
     // only in case the project is wanted and not in ingestion mode, we save the result to the query table
-    if (isProjectWanted() && !operation.toLowerCase().contains("ingestion") && k.toLowerCase().contains("avg")) {
-      String sql_query_measurement = formatQueryInsertStatement(operation, k);
+    if (isProjectWanted() && config.PROJECT_TYPE.toLowerCase().contains("query") && !operation.toLowerCase().contains("ingestion") && k.toLowerCase().contains("avg")) {
+      String sql_query_measurement = formatQueryInsertStatement(operation, v);
       try {
         stat = mysqlConnection.createStatement();
         stat.executeUpdate(sql_query_measurement);
