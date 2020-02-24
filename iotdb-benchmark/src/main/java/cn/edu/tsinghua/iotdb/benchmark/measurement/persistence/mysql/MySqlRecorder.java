@@ -35,7 +35,7 @@ public class MySqlRecorder implements ITestDataPersistence {
 
   // query mode tables
   private static final String QUERY_CREATE_STATEMENT = "create table %s (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, LOOP_RATE INT, POINT_STEP INT, QUERY_INTERVAL INT, OPERATION VARCHAR(150), Latency_AVG DOUBLE);";
-  private static final String QUERY_INSERT_STATEMENT = "insert into %s values(NULL, %d, %d, %d, %s, %f)";
+  private static final String QUERY_INSERT_STATEMENT = "insert into %s values(NULL, %d, %d, %d, '%s', %f)";
 
   private Connection mysqlConnection = null;
   private Config config = ConfigDescriptor.getInstance().getConfig();
