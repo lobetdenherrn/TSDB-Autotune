@@ -17,7 +17,7 @@ public class Constants {
     public static final String POSTGRESQL_JDBC_NAME = "org.postgresql.Driver";
     public static final String POSTGRESQL_URL = "jdbc:postgresql://%s:%s/%s";
     public static final String POSTGRESQL_USER = "postgres";
-    public static final String POSTGRESQL_PASSWD = "postgres";
+    public static final String POSTGRESQL_PASSWD = "postgrespassword";
     //support DB names of DB_SWITCH
     public static final String DB_IOT = "IoTDB";
     public static final String DB_INFLUX = "InfluxDB";
