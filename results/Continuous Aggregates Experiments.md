@@ -24,5 +24,20 @@ Now introduce continuous aggregate on query like
 
 ```sql
 -- aggValueQuery like:
-SELECT device, count(s_2) FROM benchmark WHERE (device='d_2') AND (s_2>10) GROUP BY device;
+EXPLAIN ANALYZE -- will show how long the query executed
+SELECT device, count(s_214) FROM benchmark WHERE (device='d_11') AND (time >= 1579449620000 and time <= 1579449870000) GROUP BY device;
+```
+
+the continuous aggregate will look like:
+```sql
+CREATE VIEW device_summary
+WITH (timescaledb.continuous) --This flag is what makes the view continuous
+AS
+SELECT
+  time_bucket('1 hour', observation_time) as bucket, --time_bucket is required
+  device,
+  count(s_214) as metric_count --We can use any parallelizable aggregate
+FROM
+  benchmark
+GROUP BY bucket, device; --We have to group by the bucket column, but can also add other group-by columns
 ```

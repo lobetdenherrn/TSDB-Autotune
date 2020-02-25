@@ -189,6 +189,7 @@ public class TimescaleDB implements IDatabase {
         aggRangeQuery.getAggFun());
     addWhereTimeClause(builder, aggRangeQuery);
     builder.append("GROUP BY device");
+    LOGGER.info("aggRangeQuery: " + builder.toString());
     return executeQueryAndGetStatus(builder.toString(), sensorNum);
   }
 
@@ -205,6 +206,7 @@ public class TimescaleDB implements IDatabase {
     addWhereValueClause(aggValueQuery.getDeviceSchema(), builder,
         aggValueQuery.getValueThreshold());
     builder.append(" GROUP BY device");
+    LOGGER.info("aggValueQuery: " + builder.toString());
     return executeQueryAndGetStatus(builder.toString(), sensorNum);
   }
 
@@ -224,6 +226,7 @@ public class TimescaleDB implements IDatabase {
     addWhereValueClause(aggRangeValueQuery.getDeviceSchema(), builder,
         aggRangeValueQuery.getValueThreshold());
     builder.append("GROUP BY device");
+    LOGGER.info("aggRangeValueQuery: " + builder.toString());
     return executeQueryAndGetStatus(builder.toString(), sensorNum);
   }
 
