@@ -133,7 +133,108 @@ After altering the view, I reran the ingestion scenario. This was the result:
 
 A bit lower but not really significant.
 
-Let's change the benchmark settings to be more appropriate for measuring this behavior (only one sensor and only inserting for this one):
+Let's change the benchmark settings to be more appropriate for measuring this behavior (only one sensor and only inserting for this one). This low cardinality is very much not ideal for timescaledb, as CPU load in this scenario is very high! Almost 100% all the time the ingestion test ran.
+
+| "id" | "CLIENT\_NUMBER" | "GROUP\_NUMBER" | "DEVICE\_NUMBER" | "SENSOR\_NUMBER" | "BATCH\_SIZE" | "LOOP\_RATE" | "REAL\_INSERT\_RATE" | "POINT\_STEP" | "INGESTION\_THROUGHPUT" |
+|------|------------------|-----------------|------------------|------------------|---------------|--------------|----------------------|---------------|-------------------------|
+| "6"  | "20"             | "1"             | "1"              | "1"              | "5000"        | "50"         | "1"                  | "5000"        | "21642.48"              |
+
+![CPU during regular ingestion scenario](img/cpu_during_ingestion_regular.PNG)
+
+Now execute the following aggRange query:
+
+```sql
+-- aggRangeQuery like:
+EXPLAIN ANALYZE -- will show how long the query executed
+SELECT device, count(s_0) FROM agg_test_04 WHERE (device='d_0') 
+    AND (time >= 1579449640000 and time <= 1580054440000) -- time range of one week
+    GROUP BY device
+```
+Count will measure 120961 data points within that time span but needed to count them all from the raw data. Analyze query results in the following:
+
+```
+                                                                                    QUERY PLAN
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ GroupAggregate  (cost=0.42..4857.66 rows=200 width=12) (actual time=45.801..45.801 rows=1 loops=1)
+   Group Key: _hyper_4_93_chunk.device
+   ->  Append  (cost=0.42..4250.86 rows=120960 width=12) (actual time=0.014..34.376 rows=120961 loops=1)
+         ->  Index Scan using _hyper_4_93_chunk_agg_test_04_time_idx on _hyper_4_93_chunk  (cost=0.42..2224.05 rows=63369 width=12) (actual time=0.013..14.496 rows=63369 loops=1)
+               Index Cond: (("time" >= '1579449640000'::bigint) AND ("time" <= '1580054440000'::bigint))
+               Filter: (device = 'd_0'::text)
+         ->  Index Scan using _hyper_4_92_chunk_agg_test_04_time_idx on _hyper_4_92_chunk  (cost=0.42..2026.82 rows=57591 width=12) (actual time=0.018..12.364 rows=57592 loops=1)
+               Index Cond: (("time" >= '1579449640000'::bigint) AND ("time" <= '1580054440000'::bigint))
+               Filter: (device = 'd_0'::text)
+ Planning time: 0.539 ms
+ Execution time: 50.603 ms
+(11 rows)
+```
+
+Build continuous aggregate on this:
+
+```sql
+CREATE VIEW device_count
+WITH (timescaledb.continuous) --This flag is what makes the view continuous
+AS
+SELECT
+  time_bucket('60000', time) as bucket, --time_bucket is required, bucket will be of integer, as timestamp is in BIGINT. 60000 = 1 min
+  device,
+  count(s_0) as metric_count --We can use any parallelizable aggregate
+FROM
+  agg_test_04
+GROUP BY bucket, device; --We have to group by the bucket column, but can also add other group-by columns
+```
+
+Now explicitly query the view:
+
+```sql
+EXPLAIN ANALYZE -- will show how long the query executed
+SELECT SUM(metric_count) FROM device_count
+WHERE device = 'd_0'
+  AND bucket >= '1579449640000' AND bucket < '1580054440000'; -- time format like  2020-02-25 13:08:39.912372+00
+```
+
+This will yield 120960 as an aggregated count (off by 1) on the buckets within this time range. Query will execute as fast as:
+
+```
+                                                                                                    QUERY PLAN                                                                                                
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Aggregate  (cost=481.20..481.21 rows=1 width=32) (actual time=23.693..23.693 rows=1 loops=1)
+   ->  HashAggregate  (cost=454.52..467.86 rows=1067 width=20) (actual time=20.584..22.926 rows=10080 loops=1)
+         Group Key: _hyper_5_133_chunk.bucket, _hyper_5_133_chunk.device
+         ->  Append  (cost=0.29..374.49 rows=10671 width=21) (actual time=0.041..5.022 rows=10080 loops=1)
+               ->  Index Scan Backward using _hyper_5_133_chunk__materialized_hypertable_5_bucket_idx on _hyper_5_133_chunk  (cost=0.29..374.49 rows=10671 width=21) (actual time=0.040..4.031 rows=10080 loops=1)
+                     Index Cond: ((bucket >= '1579449640000'::bigint) AND (bucket < '1580054440000'::bigint))
+                     Filter: (device = 'd_0'::text)
+ Planning time: 0.626 ms
+ Execution time: 19.891 ms
+(9 rows)
+```
+So this will reduce the latency of the count query to something smaller than 1/2 of the original query time. Now re-execute the same ingestion test, yielding the following throughput, which is only marginally lower.
+
+| "id" | "CLIENT\_NUMBER" | "GROUP\_NUMBER" | "DEVICE\_NUMBER" | "SENSOR\_NUMBER" | "BATCH\_SIZE" | "LOOP\_RATE" | "REAL\_INSERT\_RATE" | "POINT\_STEP" | "INGESTION\_THROUGHPUT" |
+|------|------------------|-----------------|------------------|------------------|---------------|--------------|----------------------|---------------|-------------------------|
+| "6"  | "20"             | "1"             | "1"              | "1"              | "5000"        | "50"         | "1"                  | "5000"        | "20606.45"              |
+
+Now set the hyperparameters to a more real-time aggregation scenario:
+
+```sql
+ALTER VIEW device_count SET (timescaledb.refresh_interval = '5 sec');
+ALTER VIEW device_count SET (timescaledb.refresh_lag = '5000');
+```
+
+And rerun the ingestion benchmark test. Following results:
+
+| "id" | "CLIENT\_NUMBER" | "GROUP\_NUMBER" | "DEVICE\_NUMBER" | "SENSOR\_NUMBER" | "BATCH\_SIZE" | "LOOP\_RATE" | "REAL\_INSERT\_RATE" | "POINT\_STEP" | "INGESTION\_THROUGHPUT" |
+|------|------------------|-----------------|------------------|------------------|---------------|--------------|----------------------|---------------|-------------------------|
+| "6"  | "20"             | "1"             | "1"              | "1"              | "5000"        | "50"         | "1"                  | "5000"        | "19818.99"              |
+
+Throughput not that different for ingestion but CPU load much higher and stayed high for a longer period of time with many workers recalculating the view:
+
+![CPU during ingestion compare continuous aggregation settings](img/cpu_during_ingestion_compare_cont_agg_settings.PNG)
+
+After more data points have been inserted, the regular SQL query counts 362883 data points for the specified interval while the view query counts 362880 (off by 3). 
+- Regular query Execution time: 159.562 ms
+- Cont. Agg query Execution time: 21.899 ms
 
 # Util
 
