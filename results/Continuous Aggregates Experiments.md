@@ -3,6 +3,7 @@
 When querying time-ranges, query latency increases over increasing time spans. This expected behavior can be seen in the figure below:
 
 ![Timescale Query Interval Increasing](img/TS_QUERY_INT_INC_QUERY.png)
+![Timescale Query Interval Increasing](img/TS_QUERY_INT_INC_QUERY_2.png)
 
 Test List:
 - AGG_TEST_01: No continuous queries specified. Ingestion test, query test with increasing query_interval
@@ -235,6 +236,55 @@ Throughput not that different for ingestion but CPU load much higher and stayed 
 After more data points have been inserted, the regular SQL query counts 362883 data points for the specified interval while the view query counts 362880 (off by 3). 
 - Regular query Execution time: 159.562 ms
 - Cont. Agg query Execution time: 21.899 ms
+
+## Average instead of count:
+
+```sql
+CREATE VIEW device_average
+WITH (timescaledb.continuous) --This flag is what makes the view continuous
+AS
+SELECT
+  time_bucket('60000', time) as bucket, --time_bucket is required, bucket will be of integer, as timestamp is in BIGINT. 60000 = 1 min
+  device,
+  avg(s_0) as metric_avg --We can use any parallelizable aggregate
+FROM
+  agg_test_04
+GROUP BY bucket, device; --We have to group by the bucket column, but can also add other group-by columns
+```
+
+```sql
+-- aggRangeQuery like:
+EXPLAIN ANALYZE -- will show how long the query executed
+SELECT device, avg(s_0) FROM agg_test_04 WHERE (device='d_0') 
+    AND (time >= 1579449640000 and time <= 1580054440000) -- time range of one week
+    GROUP BY device; 
+``` 
+Execution time: 153.490 ms, Result: 3.98699704863508
+
+```sql
+ALTER VIEW device_average SET (timescaledb.refresh_interval = '5 sec');
+ALTER VIEW device_average SET (timescaledb.refresh_lag = '5000');
+```
+
+```sql
+EXPLAIN ANALYZE -- will show how long the query executed
+SELECT AVG(metric_avg) FROM device_average
+WHERE device = 'd_0'
+  AND bucket >= '1579449640000' AND bucket < '1580054440000'; -- time format like  2020-02-25 13:08:39.912372+00
+```
+Execution time: 27.909 ms, Result:  3.98698139880956
+
+CPU consumption when the continuous aggregate got enabled: 
+![CPU when enable cont. aggregate](img/cpu_consumption_when_cont_agg_enabled.PNG)
+
+Rerun ingestion test with ingestion throughput significantly lowered to 18469.41 points/s.
+
+| "id" | "CLIENT\_NUMBER" | "GROUP\_NUMBER" | "DEVICE\_NUMBER" | "SENSOR\_NUMBER" | "BATCH\_SIZE" | "LOOP\_RATE" | "REAL\_INSERT\_RATE" | "POINT\_STEP" | "INGESTION\_THROUGHPUT" |
+|------|------------------|-----------------|------------------|------------------|---------------|--------------|----------------------|---------------|-------------------------|
+| "7"  | "20"             | "1"             | "1"              | "1"              | "5000"        | "50"         | "1"                  | "5000"        | "18469.41"              |
+
+CPU consumption when both continuous aggregates (count and average) got enabled: 
+![CPU when enable cont. aggregate](img/cpu_consumption_when_2_cont_agg_enabled.PNG)
 
 # Util
 
