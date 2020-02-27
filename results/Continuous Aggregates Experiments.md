@@ -452,6 +452,9 @@ ALTER VIEW device_average_1_week SET (timescaledb.refresh_interval = '5 sec');
 ALTER VIEW device_average_1_week SET (timescaledb.refresh_lag = '5000');
 ```
 
+CPU consumption was as follows for these 5 ingestion load tests:
+![CPU Consumptions](img/cpu_consumption_when_5_cont_agg_enabled.PNG)
+
 # Util
 
 Get information about background jobs concerning continuous aggregates:
