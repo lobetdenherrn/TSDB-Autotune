@@ -286,6 +286,172 @@ Rerun ingestion test with ingestion throughput significantly lowered to 18469.41
 CPU consumption when both continuous aggregates (count and average) got enabled: 
 ![CPU when enable cont. aggregate](img/cpu_consumption_when_2_cont_agg_enabled.PNG)
 
+# Experiment: granularities speedup
+
+One query that will want aggregates of 1 week for one month of data. How much benefit will it gain for pre-aggregations of different granularities? But what are the implications? Ingestion speed, cpu load etc.
+
+```sql
+-- raw query
+EXPLAIN ANALYZE
+SELECT
+  time_bucket('604800000', time) as week, --time_bucket is required, bucket will be of integer, as timestamp is in BIGINT. 604800000 = 1 week
+  device,
+  avg(s_0) as average --We can use any parallelizable aggregate
+FROM
+  agg_test_04
+WHERE
+  time >= '1579132800000' AND time <= '1581552000000' -- one month of data: Jan 16th til Feb 13th 2020
+GROUP BY week, device ORDER BY week ASC;
+```
+
+yields result in Planning time: 1.234 ms Execution time: 1005.488 ms (average of 4 runs)
+
+     week      | device |     average
+---------------+--------+------------------
+ 1579132800000 | d_0    | 3.98709317129588
+ 1579737600000 | d_0    | 3.98704794973504
+ 1580342400000 | d_0    | 3.98718526785673
+ 1580947200000 | d_0    | 3.98695436507895
+ 1581552000000 | d_0    |             4.92
+
+ On existing 1 min interval averages, the query looks like:
+
+ ```sql
+EXPLAIN ANALYZE -- will show how long the query executed
+SELECT 
+    time_bucket('604800000', bucket) as week, -- corresponds to one week
+    AVG(metric_avg) as week_average
+FROM device_average
+WHERE device = 'd_0'
+  AND bucket >= '1579132800000' AND bucket <= '1581552000000'
+GROUP BY week ORDER BY week ASC;
+```
+resulting in  Planning time: 0.692 ms Execution time: 77.191 ms
+     week      |   week_average
+---------------+------------------
+ 1579132800000 | 3.98709317129632
+ 1579737600000 | 3.98704794973548
+ 1580342400000 | 3.98718526785717
+ 1580947200000 | 3.98695436507939
+ 1581552000000 | 4.77083333333333
+
+However, the results of the last week differ quite a bit from 4.92 to 4.77.
+
+Now issuing a few new continuous aggregates on different granularities, but all from raw data! not based on top of each other
+
+```sql
+-- 5 min avg
+CREATE VIEW device_average_5_min
+WITH (timescaledb.continuous, timescaledb.refresh_interval = '5 min', timescaledb.refresh_lag = '300000') --This flag is what makes the view continuous
+AS
+SELECT
+  time_bucket('300000', time) as bucket, --time_bucket is required, bucket will be of integer, as timestamp is in BIGINT. 300.000 = 5 min
+  device,
+  avg(s_0) as metric_avg
+FROM
+  agg_test_04
+GROUP BY bucket, device;
+
+-- 1 hour avg
+CREATE VIEW device_average_1_hour
+WITH (timescaledb.continuous, timescaledb.refresh_interval = '1 hour', timescaledb.refresh_lag = '3600000') --This flag is what makes the view continuous
+AS
+SELECT
+  time_bucket('3600000', time) as bucket, --time_bucket is required, bucket will be of integer, as timestamp is in BIGINT. 3.600.000 = 1 hour
+  device,
+  avg(s_0) as metric_avg
+FROM
+  agg_test_04
+GROUP BY bucket, device;
+
+-- 1 day avg
+CREATE VIEW device_average_1_day
+WITH (timescaledb.continuous, timescaledb.refresh_interval = '1 day', timescaledb.refresh_lag = '86400000') --This flag is what makes the view continuous
+AS
+SELECT
+  time_bucket('86400000', time) as bucket, --time_bucket is required, bucket will be of integer, as timestamp is in BIGINT. 86.400.000 = 1 day
+  device,
+  avg(s_0) as metric_avg
+FROM
+  agg_test_04
+GROUP BY bucket, device;
+
+-- 1 week avg
+CREATE VIEW device_average_1_week
+WITH (timescaledb.continuous, timescaledb.refresh_interval = '1 week', timescaledb.refresh_lag = '604800000') --This flag is what makes the view continuous
+AS
+SELECT
+  time_bucket('604800000', time) as bucket, --time_bucket is required, bucket will be of integer, as timestamp is in BIGINT. 604.800.000 = 1 week
+  device,
+  avg(s_0) as metric_avg
+FROM
+  agg_test_04
+GROUP BY bucket, device;
+```
+`NOTICE:  adding index _materialized_hypertable_7_device_bucket_idx ON _timescaledb_internal._materialized_hypertable_7 USING BTREE(device, bucket)`
+
+Queries:
+
+```sql
+EXPLAIN ANALYZE
+SELECT 
+    time_bucket('604800000', bucket) as week, -- corresponds to one week
+    AVG(metric_avg) as week_average
+FROM device_average_1_week -- interchange this view name
+WHERE device = 'd_0'
+  AND bucket >= '1579132800000' AND bucket <= '1581552000000'
+GROUP BY week ORDER BY week ASC;
+```
+
+Results:
+5 min averages --> Planning time: 0.557 ms Execution time: 22.159 ms
+     week      |   week_average
+---------------+------------------
+ 1579132800000 | 3.98709317129627
+ 1579737600000 | 3.98704794973542
+ 1580342400000 | 3.98718526785711
+ 1580947200000 | 3.98695436507933
+ 1581552000000 |           4.2275
+
+1 hour averages --> Planning time: 0.367 ms Execution time: 2.566 ms
+     week      |   week_average
+---------------+------------------
+ 1579132800000 | 3.98709317129632
+ 1579737600000 | 3.98704794973547
+ 1580342400000 | 3.98718526785716
+ 1580947200000 | 3.98695436507938
+ 1581552000000 | 4.00598611111113
+
+1 day averages --> Planning time: 0.332 ms Execution time: 0.183 ms
+     week      |   week_average
+---------------+------------------
+ 1579132800000 | 3.98709317129632
+ 1579737600000 | 3.98704794973547
+ 1580342400000 | 3.98718526785717
+ 1580947200000 | 3.98695436507939
+ 1581552000000 | 3.98752256944446
+
+1 week averages --> Planning time: 0.589 ms Execution time: 0.194 ms
+     week      |   week_average
+---------------+------------------
+ 1579132800000 | 3.98709317129803
+ 1579737600000 | 3.98704794973719
+ 1580342400000 | 3.98718526785888
+ 1580947200000 | 3.98695436508111
+** Only 4 result rows instead of 5 ** --> time window in filter would need to be adapted to retrieve 5 rows 
+
+Now running ingestion tests, same as before. With settings specified
+1 real-time cont. aggs, 4 vanilla --> 18292.80 points/s
+2 real-time cont. aggs, 3 vanilla --> 16761.59 points/s
+3 real-time cont. aggs, 2 vanilla --> 16479.44 points/s
+4 real-time cont. aggs, 1 vanilla --> 15788.28 points/s
+5 real-time cont. aggs, 0 vanilla --> 16200.98 points/s
+
+```sql
+ALTER VIEW device_average_1_week SET (timescaledb.refresh_interval = '5 sec');
+ALTER VIEW device_average_1_week SET (timescaledb.refresh_lag = '5000');
+```
+
 # Util
 
 Get information about background jobs concerning continuous aggregates:
