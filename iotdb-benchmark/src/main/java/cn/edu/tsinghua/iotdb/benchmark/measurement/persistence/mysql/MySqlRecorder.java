@@ -20,14 +20,22 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import cn.edu.tsinghua.iotdb.benchmark.measurement.enums.Metric;
+
 public class MySqlRecorder implements ITestDataPersistence {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MySqlRecorder.class);
   private static final String SAVE_CONFIG = "insert into CONFIG values(NULL, %s, %s, %s)";
   private static final String SAVE_RESULT_FINAL = "insert into FINAL_RESULT values(NULL, '%s', '%s', '%s', '%s')";
   private static final String SAVE_RESULT_OVERVIEW = "insert into STATS_OVERVIEW values(NULL, '%s', '%s', '%s', '%s')";
+
+  // ingestion mode tables
   private static final String INGESTION_CREATE_STATEMENT = "create table %s (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, CLIENT_NUMBER INT, GROUP_NUMBER INT, DEVICE_NUMBER INT, SENSOR_NUMBER INT, BATCH_SIZE INT, LOOP_RATE INT, REAL_INSERT_RATE DOUBLE, POINT_STEP INT, INGESTION_THROUGHPUT DOUBLE);";
   private static final String INGESTION_INSERT_STATEMENT = "insert into %s values(NULL, %d, %d, %d, %d, %d, %d, %f, %d, %f)";
+
+  // query mode tables
+  private static final String QUERY_CREATE_STATEMENT = "create table %s (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, project_id VARCHAR(150), LOOP_RATE INT, POINT_STEP INT, QUERY_INTERVAL INT, OPERATION VARCHAR(150), Latency_AVG DOUBLE);";
+  private static final String QUERY_INSERT_STATEMENT = "insert into %s values(NULL, '%s', %d, %d, %d, '%s', %f)";
 
   private Connection mysqlConnection = null;
   private Config config = ConfigDescriptor.getInstance().getConfig();
@@ -40,7 +48,7 @@ public class MySqlRecorder implements ITestDataPersistence {
   // change projectID to be more specifiable
   //private String projectID = String.format("%s_%s_%s_%s",config.BENCHMARK_WORK_MODE, config.DB_SWITCH, config.REMARK, sdf.format(new java.util.Date(EXP_TIME)));
   private String projectID = String.format("%s_%s_%s_%s", config.PROJECT_ID, config.DB_SWITCH, config.REMARK, sdf.format(new java.util.Date(EXP_TIME)));
-  private String projectTableName = config.PROJECT_ID;
+  private String projectTableName = config.PROJECT_ID + "_" + config.PROJECT_TYPE;
 
   private Statement statement;
   private static final String URL_TEMPLATE = "jdbc:mysql://%s:%s/%s?user=%s&password=%s&useUnicode=true&characterEncoding=UTF8&useSSL=false&rewriteBatchedStatements=true";
@@ -123,7 +131,11 @@ public class MySqlRecorder implements ITestDataPersistence {
             String sql = String.format(INGESTION_CREATE_STATEMENT, projectTableName);
             stat.executeUpdate(sql);
             LOGGER.info("Table {} create success!", projectTableName);
-        } // else not supported yet. Only ingestion supported right now.
+        } else if (config.PROJECT_TYPE.toLowerCase().contains("query")) {
+            String sql = String.format(QUERY_CREATE_STATEMENT, projectTableName);
+            stat.executeUpdate(sql);
+            LOGGER.info("Table {} create success!", projectTableName);
+        }
       }
       if (config.BENCHMARK_WORK_MODE.equals(Constants.MODE_TEST_WITH_DEFAULT_PATH) && !hasTable(
           projectID)) {
@@ -229,9 +241,32 @@ public class MySqlRecorder implements ITestDataPersistence {
   }
 
   public String formatIngestionInsertStatement(String value){
-    // format looks like (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, CLIENT_NUMBER INT, GROUP_NUMBER INT, DEVICE_NUMBER INT, SENSOR_NUMBER INT, BATCH_SIZE INT, LOOP_RATE INT, REAL_INSERT_RATE DOUBLE, POINT_STEP INT, INGESTION_THROUGHPUT DOUBLE)
-    return String.format(INGESTION_INSERT_STATEMENT, projectTableName, config.CLIENT_NUMBER, config.GROUP_NUMBER, config.DEVICE_NUMBER,
-            config.SENSOR_NUMBER, config.BATCH_SIZE, config.LOOP, config.REAL_INSERT_RATE, config.POINT_STEP, Double.parseDouble(value));
+    // format looks like (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, CLIENT_NUMBER INT, GROUP_NUMBER INT, DEVICE_NUMBER INT, 
+    // SENSOR_NUMBER INT, BATCH_SIZE INT, LOOP_RATE INT, REAL_INSERT_RATE DOUBLE, POINT_STEP INT, INGESTION_THROUGHPUT DOUBLE)
+    return String.format(INGESTION_INSERT_STATEMENT, 
+        projectTableName, 
+        config.CLIENT_NUMBER, 
+        config.GROUP_NUMBER, 
+        config.DEVICE_NUMBER,
+        config.SENSOR_NUMBER, 
+        config.BATCH_SIZE, 
+        config.LOOP, 
+        config.REAL_INSERT_RATE, 
+        config.POINT_STEP, 
+        Double.parseDouble(value));
+  }
+
+  public String formatQueryInsertStatement(String operation, String latency_avg){
+    // format looks like (id INT UNSIGNED NOT NULL PRIMARY KEY AUTO_INCREMENT, project_id VARCHAR(150), LOOP INT, POINT_STEP INT, QUERY_INTERVAL INT, 
+    // OPERATION VARCHAR(150), Latency_AVG DOUBLE)
+    return String.format(QUERY_INSERT_STATEMENT, 
+        projectTableName,
+        projectID,
+        config.LOOP, 
+        config.POINT_STEP, 
+        config.QUERY_INTERVAL,
+        operation,
+        Double.parseDouble(latency_avg));
   }
 
   // save the measurement results to three different tables: FINAL_RESULT, STATS_OVERVIEW and the project specific table
@@ -242,13 +277,24 @@ public class MySqlRecorder implements ITestDataPersistence {
     String sql_overview = String.format(SAVE_RESULT_OVERVIEW, projectID, operation, k, v);
 
     // only in case the project is wanted and currently there is an ingestion throughput measurement, we save the result
-    if (isProjectWanted() && operation.toLowerCase().contains("ingestion") && k.toLowerCase().contains("throughput")) {
+    if (isProjectWanted() && config.PROJECT_TYPE.toLowerCase().contains("ingestion") && operation.toLowerCase().contains("ingestion") && k.toLowerCase().contains("throughput")) {
       String sql_ingestion_measurement = formatIngestionInsertStatement(v);
       try {
         stat = mysqlConnection.createStatement();
         stat.executeUpdate(sql_ingestion_measurement);
       } catch (SQLException e) {
-        LOGGER.error("{} query failed to execute on mysql server，because ：{}", sql_overview, e);
+        LOGGER.error("{} query failed to execute on mysql server，because ：{}", sql_ingestion_measurement, e);
+      }
+    }
+
+    // only in case the project is wanted and not in ingestion mode, we save the result to the query table
+    if (isProjectWanted() && config.PROJECT_TYPE.toLowerCase().contains("query") && !operation.toLowerCase().contains("ingestion") && k.toLowerCase().contains("avg")) {
+      String sql_query_measurement = formatQueryInsertStatement(operation, v);
+      try {
+        stat = mysqlConnection.createStatement();
+        stat.executeUpdate(sql_query_measurement);
+      } catch (SQLException e) {
+        LOGGER.error("{} query failed to execute on mysql server，because ：{}", sql_query_measurement, e);
       }
     }
 
