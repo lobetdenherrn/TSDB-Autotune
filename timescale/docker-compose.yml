@@ -9,6 +9,6 @@ services:
     env_file:
         - timescale.env
     volumes:
-    - db_data:/timescale_data
+    - db_data:/var/lib/postgresql/data
 volumes:
   db_data:
