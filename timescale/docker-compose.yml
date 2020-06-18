@@ -1,7 +1,7 @@
 version: '2'
 services:
   timescale:
-    image: timescale/timescaledb:1.6.1-pg10
+    image: timescale/timescaledb:1.7.1-pg10
     container_name: timescale
     ports:
         - "5432:5432"
